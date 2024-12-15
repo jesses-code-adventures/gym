@@ -1,4 +1,4 @@
-.PHONY: build run test d help
+.PHONY: backup build ci commands-check d db-kill db-migrate db-reset db-run db-schema-dump dml-with-file dml help is-dirty migrate-create migrate-up refresh run schema test
 
 SLEEP_TIME=0
 SHELL=bash
@@ -19,6 +19,11 @@ MIGRATIONS_DIR:=$(PROJECT_ROOT)/migrations
 SQLITE_DB_FILE=build/$(GO_PROJECT_NAME).sqlite
 URI:=sqlite3://
 DB_SCHEMA_OUTPUT_FILE=model/schema/$(GO_PROJECT_NAME).sql
+
+commands-ls: ## Get a list of all the commands in the makefile.
+	@grep -E -h "^[a-zA-Z_-]+:.*?## " $(MAKEFILE_LIST) \
+		| sort \
+		| awk -F ':' '{print $$1}'
 
 # HELP - will output the help for each task in the Makefile
 # In sorted order.
@@ -45,8 +50,8 @@ d: build run ## Build and run the project
 ci: build test ## Commands to run during CI
 
 commands-check: ## check that you have the tools required to run locally
-	@which sqlc || (echo "sqlc tool issue - use make init to fix" && exit 1)
-	@which sqlite3 || (echo "moq tool issue - use make init to fix" && exit 1)
+	@which sqlc > /dev/null 2>&1 || (echo "sqlc tool issue - use make init to fix" && exit 1)
+	@which sqlite3 > /dev/null 2>&1  || (echo "moq tool issue - use make init to fix" && exit 1)
 
 migrate-create: ## Create a new migration file.  Usage: make migrate-create NAME=<migration_name>
 	 @migrate create -dir ./migrations/ -ext sql $(NAME)
@@ -66,18 +71,15 @@ db-run: commands-check ## Locally - run the db:
 
 db-migrate: commands-check ## Locally - populate the local db
 	$(call dump_header, $(DEBUG_DEFAULT_HDR_WIDTH), $@, $(DEBUG_DEFAULT_HDR_CHAR), $(DEBUG_DEFAULT_HDR_FG))
-	@echo "============================================="
 	@echo "START migration to local DB to $(URI)$(SQLITE_DB_FILE)"
 	@migrate \
 		-path migrations \
 		-database "$(URI)$(SQLITE_DB_FILE)" up
 	@echo "Migration complete"
-	@echo "============================================="
 
 db-reset: db-kill db-run ## build a new DB image, kill the existing db container, create a new one and run the migration
 	$(call dump_header, $(DEBUG_DEFAULT_HDR_WIDTH), $@, $(DEBUG_DEFAULT_HDR_CHAR), $(DEBUG_DEFAULT_HDR_FG))
 	@echo "DB has been created at $(SQLITE_DB_FILE), setting up..."
-	@echo "============================================="
 	@$(MAKE) --no-print-directory db-migrate
 	@$(MAKE) --no-print-directory db-schema-dump
 
@@ -85,11 +87,8 @@ refresh: db-reset build ## Reset the db and rebuild the app
 
 db-kill: ## Remove the existing local db
 	$(call dump_header, $(DEBUG_DEFAULT_HDR_WIDTH), $@, $(DEBUG_DEFAULT_HDR_CHAR), $(DEBUG_DEFAULT_HDR_FG))
-	@echo ""
 	@echo "removing file at [$(SQLITE_DB_FILE)]"
 	@rm -f "$(SQLITE_DB_FILE)"
-	@echo "============================================="
-	@echo ""
 
 backup: ## create a backup of the sqlite database
 	$(eval LOCAL_DB_BACKUP_FILE=$(PROJECT_ROOT)/migrations/backups/backup.$(TIMESTAMP).sqlite)
@@ -120,9 +119,9 @@ is-dirty: ## get the status of the previous migration from the schema migration 
 	@$(eval QUERY:='SELECT * FROM schema_migrations;')
 	@$(MAKE) dml --no-print-directory QUERY=$(QUERY)
 
-dml: ## execute a single query against the sqlite database
+dml: ## execute a single query against the sqlite database eg `make dml QUERY="select * from workout"`
 	@sqlite3 $(SQLITE_DB_FILE) '$(QUERY)'
 
-dml-with-file: ## execute script file against the sqlite database
+dml-with-file: ## execute script file against the sqlite database eg `make dml-with-file DML_FILE_PATH=path_to_file.sql`
 	$(call dump_header, $(DEBUG_DEFAULT_HDR_WIDTH), $@ - $(DML_FILE_PATH) , $(DEBUG_DEFAULT_HDR_CHAR), $(DEBUG_DEFAULT_HDR_FG))
 	@sqlite3 $(SQLITE_DB_FILE) < $(DML_FILE_PATH)
