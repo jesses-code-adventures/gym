@@ -1,8 +1,6 @@
 .PHONY: build run test d help
 
-OUTPUT_FILE:=build/gym
-
-DOCKER_LOCAL_DB_FILEPATH:=Dockerfile.localdb
+OUTPUT_BIN:=build/gym
 SLEEP_TIME=0
 SHELL=bash
 PROJECT_ROOT:=$(shell git rev-parse --show-toplevel)
@@ -33,10 +31,10 @@ help: ## This help.
 	  | awk -v width=36 'BEGIN {FS = ":.*?## "} {printf "\033[36m%-*s\033[0m %s\n", width, $$1, $$2}'
 
 build: ## Build the executable and save to $(BUILD_SOURCE_FILE)
-	@go build -o $(OUTPUT_FILE) $(BUILD_SOURCE_FILE)
+	@go build -o $(OUTPUT_BIN) $(BUILD_SOURCE_FILE)
 
 run: ## Run the binary at $(BUILD_SOURCE_FILE)
-	@$(OUTPUT_FILE)
+	@$(OUTPUT_BIN)
 
 test: ## Run the project's tests
 	@go test ./...
@@ -81,6 +79,8 @@ db-reset: db-kill db-run ## build a new DB image, kill the existing db container
 	@echo "============================================="
 	@$(MAKE) --no-print-directory db-migrate
 	@$(MAKE) --no-print-directory db-schema-dump
+
+refresh: db-reset build ## Reset the db and rebuild the app
 
 db-kill: ## Remove the existing local db
 	$(call dump_header, $(DEBUG_DEFAULT_HDR_WIDTH), $@, $(DEBUG_DEFAULT_HDR_CHAR), $(DEBUG_DEFAULT_HDR_FG))
