@@ -1,6 +1,5 @@
 .PHONY: build run test d help
 
-OUTPUT_BIN:=build/gym
 SLEEP_TIME=0
 SHELL=bash
 PROJECT_ROOT:=$(shell git rev-parse --show-toplevel)
@@ -9,11 +8,13 @@ GIT_BRANCH_SANITISED:=$(shell git rev-parse --abbrev-ref HEAD | sed "s*/*-*g" | 
 ENV_CONTEXT ?= $(PROJECT_ROOT)/.local.env
 LOCAL_ENV_MINE=$(PROJECT_ROOT)/.local.mine.env
 GO_PROJECT_NAME:=$(shell go mod edit -json | jq -r .Module.Path | xargs basename)
-MAIN_DIR:=$(PROJECT_ROOT)/cmd/gym
+MAIN_DIR:=$(PROJECT_ROOT)/cmd/$(GO_PROJECT_NAME)
 BUILD_SOURCE_FILE=$(MAIN_DIR)/main.go
+OUTPUT_BIN:=build/$(GO_PROJECT_NAME)
 OS_PLATFORM:=$(shell uname | sed s/-.*//)
 -include $(ENV_CONTEXT) $(LOCAL_ENV_MINE)
 MAKE_LIB:=$(PROJECT_ROOT)/scripts/make
+-include $(MAKE_LIB)/print.mk
 MIGRATIONS_DIR:=$(PROJECT_ROOT)/migrations
 SQLITE_DB_FILE=build/$(GO_PROJECT_NAME).sqlite
 URI:=sqlite3://
@@ -75,7 +76,7 @@ db-migrate: commands-check ## Locally - populate the local db
 
 db-reset: db-kill db-run ## build a new DB image, kill the existing db container, create a new one and run the migration
 	$(call dump_header, $(DEBUG_DEFAULT_HDR_WIDTH), $@, $(DEBUG_DEFAULT_HDR_CHAR), $(DEBUG_DEFAULT_HDR_FG))
-	@echo "Reset Local Container DB - $(DB_CONTAINER_NAME)"
+	@echo "DB has been created at $(SQLITE_DB_FILE), setting up..."
 	@echo "============================================="
 	@$(MAKE) --no-print-directory db-migrate
 	@$(MAKE) --no-print-directory db-schema-dump
@@ -116,8 +117,8 @@ select-all-%: ## select all rows from a table
 	@$(MAKE) dml --no-print-directory QUERY=$(QUERY)
 
 is-dirty: ## get the status of the previous migration from the schema migration tables
-	$(eval QUERY:='SELECT * FROM schema_migrations;')
-	$(MAKE) dml --no-print-directory QUERY=$(QUERY)
+	@$(eval QUERY:='SELECT * FROM schema_migrations;')
+	@$(MAKE) dml --no-print-directory QUERY=$(QUERY)
 
 dml: ## execute a single query against the sqlite database
 	@sqlite3 $(SQLITE_DB_FILE) '$(QUERY)'
