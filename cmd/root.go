@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -15,7 +16,9 @@ var rootCmd = &cobra.Command{
 It should also be written so it could be easily used as an API, so that a little mobile app is possible.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
-	// Run: func(cmd *cobra.Command, args []string) { },
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Printf("%v", args)
+	},
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
