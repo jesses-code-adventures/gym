@@ -1,5 +1,9 @@
 version: "2"
 sql:
-  - engine: "postgresql"
+  - engine: "sqlite"
     queries: "model/queries"
     schema: "migrations"
+    gen:
+      go:
+        package: "model"
+        out: "model"

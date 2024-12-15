@@ -1,5 +1,6 @@
 .PHONY: backup build ci commands-check d db-kill db-migrate db-reset db-run db-schema-dump dml-with-file dml help is-dirty migrate-create migrate-up refresh run schema test
 
+GO:=go
 SLEEP_TIME=0
 SHELL=bash
 PROJECT_ROOT:=$(shell git rev-parse --show-toplevel)
@@ -7,7 +8,7 @@ GIT_BRANCH:=$(shell git rev-parse --abbrev-ref HEAD | sed "s*/*-*g")
 GIT_BRANCH_SANITISED:=$(shell git rev-parse --abbrev-ref HEAD | sed "s*/*-*g" | tr '[:upper:]' '[:lower:]')
 ENV_CONTEXT ?= $(PROJECT_ROOT)/.local.env
 LOCAL_ENV_MINE=$(PROJECT_ROOT)/.local.mine.env
-GO_PROJECT_NAME:=$(shell go mod edit -json | jq -r .Module.Path | xargs basename)
+GO_PROJECT_NAME:=$(shell $(GO) mod edit -json | jq -r .Module.Path | xargs basename)
 MAIN_DIR:=$(PROJECT_ROOT)/cmd/$(GO_PROJECT_NAME)
 BUILD_SOURCE_FILE=$(MAIN_DIR)/main.go
 OUTPUT_BIN:=build/$(GO_PROJECT_NAME)
@@ -36,14 +37,17 @@ help: ## This help.
 	  | sort \
 	  | awk -v width=36 'BEGIN {FS = ":.*?## "} {printf "\033[36m%-*s\033[0m %s\n", width, $$1, $$2}'
 
-build: ## Build the executable and save to $(BUILD_SOURCE_FILE)
-	@go build -o $(OUTPUT_BIN) $(BUILD_SOURCE_FILE)
+gen:
+	@sqlc generate
+
+build: gen ## Build the executable and save to $(BUILD_SOURCE_FILE)
+	@$(GO) build -o $(OUTPUT_BIN) $(BUILD_SOURCE_FILE)
 
 run: ## Run the binary at $(BUILD_SOURCE_FILE)
 	@$(OUTPUT_BIN)
 
 test: ## Run the project's tests
-	@go test ./...
+	@$(GO) test ./...
 
 d: build run ## Build and run the project
 
