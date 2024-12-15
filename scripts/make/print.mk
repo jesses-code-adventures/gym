@@ -55,3 +55,14 @@ define dump_var
 	@echo $(1) $(2) $(origin 1) | awk -v width=30 '{printf "  \033[33m%-*s\033[0m - %-*s \033[34m%s\033[0m\n", width, $$1, (width + 25), $$2, $$3}'
 endef
 
+# HELP - will output the help for each task in the Makefile
+# In sorted order.
+# The width of the first column can be determined by the `width` value passed to awk
+#
+# thanks to https://marmelab.com/blog/2016/02/29/auto-documented-makefile.html for the initial version.
+#
+help: ## This help.
+	@grep -E -h "^[a-zA-Z_-]+:.*?## " $(MAKEFILE_LIST) \
+	  | sort \
+	  | awk -v width=36 'BEGIN {FS = ":.*?## "} {printf "\033[36m%-*s\033[0m %s\n", width, $$1, $$2}'
+
