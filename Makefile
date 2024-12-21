@@ -3,13 +3,16 @@
 GO:=go
 SLEEP_TIME=0
 SHELL=bash
+CMD_DIR:=cmd
+BUILD_DIR:=build
 PROJECT_ROOT:=$(shell git rev-parse --show-toplevel)
 GIT_BRANCH:=$(shell git rev-parse --abbrev-ref HEAD | sed "s*/*-*g")
 GIT_BRANCH_SANITISED:=$(shell git rev-parse --abbrev-ref HEAD | sed "s*/*-*g" | tr '[:upper:]' '[:lower:]')
 ENV_CONTEXT ?= $(PROJECT_ROOT)/.local.env
 LOCAL_ENV_MINE=$(PROJECT_ROOT)/.local.mine.env
 GO_PROJECT_NAME:=$(shell $(GO) mod edit -json | jq -r .Module.Path | xargs basename)
-OUTPUT_BIN:=build/$(GO_PROJECT_NAME)
+CLI_CMD_SOURCE:=$(CMD_DIR)/$(GO_PROJECT_NAME)-cli/main.go
+CLI_OUTPUT_BIN:=$(BUILD_DIR)/$(GO_PROJECT_NAME)-cli
 OS_PLATFORM:=$(shell uname | sed s/-.*//)
 -include $(ENV_CONTEXT) $(LOCAL_ENV_MINE)
 MAKE_LIB:=$(PROJECT_ROOT)/scripts/make
@@ -17,7 +20,7 @@ MAKE_LIB:=$(PROJECT_ROOT)/scripts/make
 -include $(MAKE_LIB)/local-db.mk
 -include $(MAKE_LIB)/print.mk
 MIGRATIONS_DIR:=$(PROJECT_ROOT)/migrations
-SQLITE_DB_FILE=build/$(GO_PROJECT_NAME).sqlite
+SQLITE_DB_FILE=$(BUILD)/$(GO_PROJECT_NAME).sqlite
 URI:=sqlite3://
 DB_SCHEMA_OUTPUT_FILE=model/schema/$(GO_PROJECT_NAME).sql
 
@@ -33,11 +36,10 @@ gen: ## Run any codegen associated with the project
 	@sqlc generate
 	
 build: gen ## Build the executable and save to $(OUTPUT_BIN)
-	@$(GO) build -o $(OUTPUT_BIN)
+	@$(GO) build -o $(CLI_OUTPUT_BIN) $(CLI_CMD_SOURCE)
 
 run: ## Run the binary at $(OUTPUT_BIN)
-	@echo "Running: $(OUTPUT_BIN) $(filter-out $@,$(MAKECMDGOALS)) $(MAKEFLAGS)"
-	@$(OUTPUT_BIN) $(ARGS)
+	@$(CLI_OUTPUT_BIN) $(ARGS)
 
 test: ## Run the project's tests
 	@$(GO) test ./...
